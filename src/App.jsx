@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || "https://aauifejcgrmkobemhkbx.supabase.co",
-  import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhdWlmZWpjZ3Jta29iZW1oa2J4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4NDIzMzMsImV4cCI6MjAzOTQxODMzM30.wWgHF7bRMN6xBMkBSqsNQ2IYDkTVKAa-3UPITqnlAYI"
+  "https://aauifejcgrmkobemhkbx.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhdWlmZWpjZ3Jta29iZW1oa2J4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4NDIzMzMsImV4cCI6MjAzOTQxODMzM30.wWgHF7bRMN6xBMkBSqsNQ2IYDkTVKAa-3UPITqnlAYI"
 );
 
 const WA_NUM = import.meta.env.VITE_WA_NUMBER || "5493814092807";
