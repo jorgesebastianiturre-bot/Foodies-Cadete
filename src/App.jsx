@@ -64,6 +64,7 @@ function LoginScreen({ onLogin }) {
   const [pass, setPass] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [verPass, setVerPass] = useState(false);
 
   const handleLogin = async () => {
     if (!nombre.trim()) return setError("Ingresá tu nombre");
@@ -104,9 +105,16 @@ function LoginScreen({ onLogin }) {
           value={nombre} onChange={e=>setNombre(e.target.value)}
           onKeyDown={e=>e.key==="Enter"&&handleLogin()} autoCapitalize="off" autoCorrect="off" />
         <div style={S.label}>Contraseña</div>
-        <input style={S.input} type="password" placeholder="••••••••"
-          value={pass} onChange={e=>setPass(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&handleLogin()} />
+        <div style={{ position:"relative", marginBottom:12 }}>
+          <input style={{...S.input, marginBottom:0, paddingRight:44}} type={verPass?"text":"password"} placeholder="••••••••"
+            value={pass} onChange={e=>setPass(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()} />
+          <button onClick={()=>setVerPass(v=>!v)} type="button"
+            style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)",
+              background:"none", border:"none", cursor:"pointer", color:C.muted, fontSize:18, padding:0 }}>
+            {verPass ? "🙈" : "👁️"}
+          </button>
+        </div>
         {error && <div style={{ color:C.danger, fontSize:13, marginBottom:12, textAlign:"center" }}>{error}</div>}
         <button style={S.btn("primary",true)} onClick={handleLogin} disabled={cargando}>
           {cargando ? "Verificando..." : "Ingresar"}
