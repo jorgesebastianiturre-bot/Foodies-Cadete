@@ -73,20 +73,33 @@ function LoginScreen({ onLogin }) {
     try {
       const { data, error: err } = await supabase
         .from("empleados")
-        .select("*")
+        .select("id,nombre,usuario,rol,activo")
         .eq("usuario", nombre.trim().toLowerCase())
-        .eq("password", pass.trim().toLowerCase())
         .eq("rol", "Cadete")
-        .eq("activo", true)
-        .single();
-      if (err || !data) {
+        .eq("activo", true);
+      if (err) {
+        console.error("Login error:", err);
+        setError("Error de conexión: " + err.message);
+      } else if (!data || data.length === 0) {
         setError("Usuario o contraseña incorrectos");
       } else {
-        const session = { id: data.id, nombre: data.nombre, usuario: data.usuario };
-        setSession(session);
-        onLogin(session);
+        // verificar password del lado cliente
+        const emp = data[0];
+        const { data: empFull } = await supabase
+          .from("empleados")
+          .select("password")
+          .eq("id", emp.id)
+          .single();
+        if (!empFull || empFull.password?.toLowerCase() !== pass.trim().toLowerCase()) {
+          setError("Usuario o contraseña incorrectos");
+        } else {
+          const session = { id: emp.id, nombre: emp.nombre, usuario: emp.usuario };
+          setSession(session);
+          onLogin(session);
+        }
       }
-    } catch {
+    } catch(e) {
+      console.error("Login catch:", e);
       setError("Sin conexión — verificá tu internet");
     }
     setCargando(false);
