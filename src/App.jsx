@@ -350,17 +350,31 @@ function MainScreen({ cadete, turno, onCerrar }) {
           <div style={S.card}>
             <div style={{ fontSize:12, fontWeight:700, color:C.accent, marginBottom:12 }}>Entregadas hoy</div>
             {entregadas.map(r => (
-              <div key={r.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-                borderBottom:`1px solid ${C.border}`, paddingBottom:10, marginBottom:10 }}
-                onClick={() => { setRendSelec(r); setVista("detalle"); }}>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:14 }}>Comanda #{r.comanda}</div>
-                  <div style={{ fontSize:11, color:C.muted }}>{fmtHora(r.hora_entrega)} · {r.cliente_nombre||"Sin cliente"}</div>
+              <div key={r.id} style={{ borderBottom:`1px solid ${C.border}`, paddingBottom:10, marginBottom:10 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}
+                  onClick={() => { setRendSelec(r); setVista("detalle"); }}>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:14 }}>Comanda #{r.comanda}</div>
+                    <div style={{ fontSize:11, color:C.muted }}>{fmtHora(r.hora_entrega)} · {r.cliente_nombre||"Sin cliente"}</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontWeight:800, color:r.medio_pago==="Efectivo"?C.success:C.info }}>{fmt(r.monto)}</div>
+                    <div style={{ fontSize:10, color:C.muted }}>{r.medio_pago}</div>
+                  </div>
                 </div>
-                <div style={{ textAlign:"right" }}>
-                  <div style={{ fontWeight:800, color:r.medio_pago==="Efectivo"?C.success:C.info }}>{fmt(r.monto)}</div>
-                  <div style={{ fontSize:10, color:C.muted }}>{r.medio_pago}</div>
-                </div>
+                {/* Botón rendir efectivo */}
+                {r.medio_pago==="Efectivo" && (
+                  r.rendicion_estado==="rendido"
+                    ? <div style={{ fontSize:11, color:C.success, fontWeight:700 }}>✅ Efectivo rendido {fmtHora(r.rendicion_hora)}{r.rendicion_confirmada_por ? ` · Confirmado por ${r.rendicion_confirmada_por}` : " · Pendiente confirmación"}</div>
+                    : <button style={{ ...S.btn("warn"), padding:"8px 0", fontSize:12, marginBottom:0 }}
+                        onClick={async()=>{
+                          if(!confirm(`¿Rendiste el efectivo de la comanda #${r.comanda}?`)) return;
+                          await supabase.from("rendiciones_cadete").update({ rendicion_estado:"rendido", rendicion_hora: new Date().toISOString() }).eq("id", r.id);
+                          setRendiciones(prev => prev.map(x => x.id===r.id ? {...x, rendicion_estado:"rendido", rendicion_hora: new Date().toISOString()} : x));
+                        }}>
+                        💵 Rendir efectivo al vendedor
+                      </button>
+                )}
               </div>
             ))}
           </div>
