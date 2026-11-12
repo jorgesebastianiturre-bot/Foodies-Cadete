@@ -527,6 +527,10 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
   const [cargando, setCargando] = useState(false);
   const [mixtoEfectivo, setMixtoEfectivo] = useState("");
   const [mixtoTransfer, setMixtoTransfer] = useState("");
+  const [corrigiendoPago, setCorrigiendoPago] = useState(false);
+  const [nuevoPago, setNuevoPago] = useState(null);
+  const [nuevoMixEf, setNuevoMixEf] = useState("");
+  const [nuevoMixTr, setNuevoMixTr] = useState("");
   const fileRef = useRef();
 
   const tiempoEntrega = rend.hora_salida && rend.hora_entrega
@@ -591,6 +595,25 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
     onVolver();
   };
 
+  const guardarCorreccionPago = async () => {
+    if (!nuevoPago) return alert("Seleccioná el medio de pago");
+    if (nuevoPago === "Mixto") {
+      if (!(parseFloat(nuevoMixEf)>0) || !(parseFloat(nuevoMixTr)>0)) return alert("Ingresá los montos");
+    }
+    setCargando(true);
+    const ef = nuevoPago==="Mixto" ? parseFloat(nuevoMixEf)||0 : nuevoPago==="Efectivo" ? rend.monto : 0;
+    const tr = nuevoPago==="Mixto" ? parseFloat(nuevoMixTr)||0 : nuevoPago==="Transferencia" ? rend.monto : 0;
+    await supabase.from("rendiciones_cadete").update({
+      medio_pago: nuevoPago,
+      monto_efectivo: ef || null,
+      monto_transferencia: tr || null,
+    }).eq("id", rend.id);
+    setCargando(false);
+    setCorrigiendoPago(false);
+    onActualizar();
+    onVolver();
+  };
+
   if (rend.estado === "entregado") return (
     <div style={S.page}>
       <div style={S.header}>
@@ -606,6 +629,35 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
           {tiempoEntrega && <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>⏱ {tiempoEntrega} minutos</div>}
         </div>
         {rend.foto_salida && <img src={rend.foto_salida} alt="foto" style={{ width:"100%", borderRadius:10, marginBottom:12 }} />}
+
+        {/* Corrección de forma de pago */}
+        {!corrigiendoPago
+          ? <button style={{ ...S.btn("warn"), marginTop:8 }} onClick={()=>{ setCorrigiendoPago(true); setNuevoPago(rend.medio_pago); }}>✏️ Corregir forma de pago</button>
+          : <div style={{ ...S.card, border:`1px solid #ca8a04` }}>
+              <div style={{ fontWeight:800, color:"#eab308", marginBottom:12 }}>Cambiar forma de pago</div>
+              {["Efectivo","Transferencia","Mixto"].map(op=>(
+                <button key={op} style={{ ...S.btn(nuevoPago===op?"warn":"neutral"), marginBottom:8, opacity:1,
+                  border: nuevoPago===op ? `2px solid #eab308` : `1px solid ${C.border}` }}
+                  onClick={()=>setNuevoPago(op)}>
+                  {op==="Efectivo"?"💵":op==="Transferencia"?"📱":"🔀"} {op}
+                </button>
+              ))}
+              {nuevoPago==="Mixto"&&<div style={{ marginTop:4 }}>
+                <div style={S.label}>Efectivo $</div>
+                <input style={S.input} type="number" placeholder="0" value={nuevoMixEf}
+                  onChange={e=>{ setNuevoMixEf(e.target.value); setNuevoMixTr(String((rend.monto||0)-parseFloat(e.target.value||0))); }}/>
+                <div style={S.label}>Transferencia $</div>
+                <input style={S.input} type="number" placeholder="0" value={nuevoMixTr}
+                  onChange={e=>{ setNuevoMixTr(e.target.value); setNuevoMixEf(String((rend.monto||0)-parseFloat(e.target.value||0))); }}/>
+              </div>}
+              <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                <button style={{ ...S.btn("neutral"), flex:1 }} onClick={()=>setCorrigiendoPago(false)}>Cancelar</button>
+                <button style={{ ...S.btn("success"), flex:2 }} onClick={guardarCorreccionPago} disabled={cargando}>
+                  {cargando?"Guardando...":"✅ Guardar corrección"}
+                </button>
+              </div>
+            </div>
+        }
       </div>
     </div>
   );
