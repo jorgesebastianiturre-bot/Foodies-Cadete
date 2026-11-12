@@ -363,12 +363,13 @@ function MainScreen({ cadete, turno, onCerrar }) {
                   </div>
                 </div>
                 {/* Botón rendir efectivo */}
-                {r.medio_pago==="Efectivo" && (
+                {(r.medio_pago==="Efectivo" || r.medio_pago==="Mixto") && (
                   r.rendicion_estado==="rendido"
                     ? <div style={{ fontSize:11, color:C.success, fontWeight:700 }}>✅ Efectivo rendido {fmtHora(r.rendicion_hora)}{r.rendicion_confirmada_por ? ` · Confirmado por ${r.rendicion_confirmada_por}` : " · Pendiente confirmación"}</div>
                     : <button style={{ ...S.btn("warn"), padding:"8px 0", fontSize:12, marginBottom:0 }}
                         onClick={async()=>{
-                          if(!confirm(`¿Rendiste el efectivo de la comanda #${r.comanda}?`)) return;
+                          const montoEf = r.monto_efectivo || r.monto;
+                          if(!confirm(`¿Rendiste $${Number(montoEf).toLocaleString("es-AR")} en efectivo de la comanda #${r.comanda}?`)) return;
                           await supabase.from("rendiciones_cadete").update({ rendicion_estado:"rendido", rendicion_hora: new Date().toISOString() }).eq("id", r.id);
                           setRendiciones(prev => prev.map(x => x.id===r.id ? {...x, rendicion_estado:"rendido", rendicion_hora: new Date().toISOString()} : x));
                         }}>
@@ -524,6 +525,8 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
   const [medioPago, setMedioPago] = useState(null);
   const [fotoEntrega, setFotoEntrega] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [mixtoEfectivo, setMixtoEfectivo] = useState("");
+  const [mixtoTransfer, setMixtoTransfer] = useState("");
   const fileRef = useRef();
 
   const tiempoEntrega = rend.hora_salida && rend.hora_entrega
@@ -532,6 +535,11 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
 
   const confirmarEntrega = async (pago) => {
     if (!pago) return alert("Seleccioná el medio de pago");
+    if (pago === "Mixto") {
+      const ef = parseFloat(mixtoEfectivo) || 0;
+      const tr = parseFloat(mixtoTransfer) || 0;
+      if (ef <= 0 || tr <= 0) return alert("Ingresá los montos de efectivo y transferencia");
+    }
     setCargando(true);
     const ahora = new Date().toISOString();
 
@@ -544,8 +552,13 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
       ));
     }
 
+    const ef = pago==="Mixto" ? parseFloat(mixtoEfectivo)||0 : pago==="Efectivo" ? rend.monto : 0;
+    const tr = pago==="Mixto" ? parseFloat(mixtoTransfer)||0 : pago==="Transferencia" ? rend.monto : 0;
+
     const update = {
       medio_pago: pago,
+      monto_efectivo: ef || null,
+      monto_transferencia: tr || null,
       estado: "entregado",
       hora_entrega: ahora,
       gps_entrega_lat: gpsEntrega?.lat || null,
@@ -557,7 +570,6 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
     if (navigator.onLine) {
       await supabase.from("rendiciones_cadete").update(update).eq("id", rend.id);
     } else {
-      // Actualizar offline
       const p = getPendientes();
       const idx = p.findIndex(x=>x.id===rend.id);
       if (idx>=0) p[idx] = {...p[idx], ...update};
@@ -567,7 +579,10 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
 
     // WhatsApp al local
     const mins = tiempoEntrega || minutos(rend.hora_salida, ahora);
-    const msg = `🛵 *Comanda #${rend.comanda} entregada*\n👤 Cadete: ${rend.nombre_cadete}\n💰 ${pago}: ${fmt(rend.monto)}${rend.cliente_nombre ? `\n📍 Cliente: ${rend.cliente_nombre}` : ""}${mins ? `\n⏱ Tiempo: ${mins} min` : ""}`;
+    const pagoTxt = pago==="Mixto"
+      ? `Efectivo $${Number(ef).toLocaleString("es-AR")} + Transferencia $${Number(tr).toLocaleString("es-AR")}`
+      : `${pago}: ${fmt(rend.monto)}`;
+    const msg = `🛵 *Comanda #${rend.comanda} entregada*\n👤 Cadete: ${rend.nombre_cadete}\n💰 ${pagoTxt}${rend.cliente_nombre ? `\n📍 Cliente: ${rend.cliente_nombre}` : ""}${mins ? `\n⏱ Tiempo: ${mins} min` : ""}`;
     const waUrl = `https://wa.me/${WA_NUM}?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, "_blank");
 
@@ -632,12 +647,37 @@ function DetalleEntrega({ rend, onVolver, onActualizar }) {
         }
 
         <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:10 }}>¿Cómo pagó el cliente?</div>
-        <button style={{ ...S.btn("success",true), marginBottom:10 }} onClick={()=>confirmarEntrega("Efectivo")} disabled={cargando}>
+        <button style={{ ...S.btn("success",true), marginBottom:10, opacity: medioPago==="Efectivo"?1:0.7 }} onClick={()=>setMedioPago("Efectivo")} disabled={cargando}>
           💵 Efectivo
         </button>
-        <button style={{ ...S.btn("info",true), background:"#1d4ed8" }} onClick={()=>confirmarEntrega("Transferencia")} disabled={cargando}>
+        <button style={{ ...S.btn("info",true), background:"#1d4ed8", marginBottom:10, opacity: medioPago==="Transferencia"?1:0.7 }} onClick={()=>setMedioPago("Transferencia")} disabled={cargando}>
           📱 Transferencia
         </button>
+        <button style={{ ...S.btn("warn",true), marginBottom:14, opacity: medioPago==="Mixto"?1:0.7 }} onClick={()=>setMedioPago("Mixto")} disabled={cargando}>
+          🔀 Mixto (efectivo + transferencia)
+        </button>
+        {medioPago==="Mixto" && (
+          <div style={{ background: C.card, borderRadius:10, padding:"12px 14px", marginBottom:14, border:`1px solid ${C.border}` }}>
+            <div style={{ fontSize:12, color:C.muted, marginBottom:4 }}>Total: {fmt(rend.monto)}</div>
+            <div style={{ display:"flex", gap:10, marginBottom:8 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>💵 Efectivo</div>
+                <input style={{ ...S.input, marginBottom:0 }} type="number" placeholder="0" value={mixtoEfectivo}
+                  onChange={e=>{ setMixtoEfectivo(e.target.value); setMixtoTransfer(String((rend.monto||0)-parseFloat(e.target.value||0))); }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>📱 Transferencia</div>
+                <input style={{ ...S.input, marginBottom:0 }} type="number" placeholder="0" value={mixtoTransfer}
+                  onChange={e=>{ setMixtoTransfer(e.target.value); setMixtoEfectivo(String((rend.monto||0)-parseFloat(e.target.value||0))); }} />
+              </div>
+            </div>
+          </div>
+        )}
+        {medioPago && (
+          <button style={{ ...S.btn("success",true), background:"#15803d" }} onClick={()=>confirmarEntrega(medioPago)} disabled={cargando}>
+            {cargando ? "Confirmando..." : "✅ Confirmar entrega"}
+          </button>
+        )}
       </div>
     </div>
   );
