@@ -274,8 +274,8 @@ function MainScreen({ cadete, turno, onCerrar }) {
     }
   };
 
-  const totalEfectivo = rendiciones.filter(r=>r.medio_pago==="Efectivo"&&r.estado==="entregado").reduce((s,r)=>s+Number(r.monto||0),0);
-  const totalTransfer = rendiciones.filter(r=>r.medio_pago==="Transferencia"&&r.estado==="entregado").reduce((s,r)=>s+Number(r.monto||0),0);
+  const totalEfectivo = rendiciones.filter(r=>r.estado==="entregado").reduce((s,r)=>s+Number(r.monto_efectivo||0),0);
+  const totalTransfer = rendiciones.filter(r=>r.estado==="entregado").reduce((s,r)=>s+Number(r.monto_transferencia||0),0);
   const enCamino = rendiciones.filter(r=>r.estado==="en_camino");
   const entregadas = rendiciones.filter(r=>r.estado==="entregado");
   const pendientes = rendiciones.filter(r=>r.estado==="pendiente");
